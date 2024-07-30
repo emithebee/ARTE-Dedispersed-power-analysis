@@ -8,9 +8,15 @@ from scipy.signal import find_peaks
 
 
 def prep():
+    """
+    Function to have a list of the files in the directory and the keys to the .npz files
+    Output :
+    listdir: list, names of the .npz files
+    dmkeys: list, keys to access the arrays where the data is stored in the .npz files
+    """
     #se crea lista con archivoc npz
-    x = os.listdir()
-    x.sort()
+    listdir = os.listdir()
+    listdir.sort()
     #todos los archivos tienen las mismas llaves
     file = np.load(x[0])
     keys = list(file.keys())
@@ -20,12 +26,18 @@ def prep():
     cindex, nindex = 2, 10
     element = dmkeys.pop(cindex)
     dmkeys.insert(nindex, element)
-    return x, dmkeys
+    return listdir, dmkeys
 
-#Función para moving average, win_size corresponde a la Cantidad de datos para los que se calcula
-#para cantidades de datos grandes se recomienda win_size más grande
 
 def moving_average(data, N = 256):
+	"""
+	Function to calculate the moving average of an array
+    Input :
+    data: 1d-array, data from which to calculate moving average
+    N: int, window size for the mv. avg
+    Output :
+    np.array(mvavg): array, the calculated moving average. the first N indices are replaced with NaN
+    """
     cumsum = np.cumsum(np.insert(data, 0, 0))
     mvavg = list((cumsum[N:]-cumsum[:-N])/float(N))
     for i in range(N-1):
@@ -33,9 +45,16 @@ def moving_average(data, N = 256):
     return np.array(mvavg)
 
 
-#función para obtener DM de un solo archivo
+
 
 def dm(data):
+	"""
+	Function to extract all the DM data of an .npz file
+    Input :
+    data: str, name of the file to extract the DM data
+    Output :
+    dms: 2d-array, consisting of the 11 DMs in the file. the length of each DM is diferent, longer in smaller DMs
+    """
     dms = []
     for n in range(len(dmkeys)):
         file = np.load(data)
@@ -53,6 +72,7 @@ def dm(data):
 
 def hl_envelopes_idx(s, dmin=1, dmax=1, split=False):
     """
+    Function to create masks in order to obtain the envelope of an array in a time series
     Input :
     s: 1d-array, data signal from which to extract high and low envelopes
     dmin, dmax: int, optional, size of chunks, use this if the size of the input signal is too big
@@ -79,17 +99,20 @@ def hl_envelopes_idx(s, dmin=1, dmax=1, split=False):
     # global max of dmax-chunks of locals max 
     lmax = lmax[[i+np.argmax(s[lmax[i:i+dmax]]) for i in range(0,len(lmax),dmax)]]
     return lmin,lmax
-    '''
-    
-    Uso: lmin y lmax son masks, se plotea y luego se hace el mismo plot maskeando (array[lmin] o array[lmask]). Se puede ajustar el ancho de la
-    envolvente
-    '''
+
 
 #se obtiene la envolvente de la potencia para dilusidar mejor los eventos los unos de los otros
-# se busca los puntos donde la envolvente corta un threshold
 
-def detecciones_eventos(data, std=5, slice = 255):
-     
+def detecciones_eventos(data, std=8, slice = 255):
+    """
+    Function to count the events that surpass a threshold
+    Input :
+    data: 1d-array, raw DM data
+    std: int, sigma threshold value
+    slice: int, equal in number of the used window size in the moving average
+    Output :
+    round(len(i)/2): int, number of events detected from the data
+    """
      lmin, lmax = hl_envelopes_idx(data, dmin=256, dmax=256)
      
      envolvente = data[lmax]
@@ -98,12 +121,21 @@ def detecciones_eventos(data, std=5, slice = 255):
      
      i = np.argwhere(np.diff(np.sign(envolvente-t))).flatten()
      return round(len(i)/2)
-     
-#se cuenta cada peak por sobre un threshold     
-def peaks_over_thresh(data, std = 5):
+       
+def peaks_over_thresh(data, std = 8, slice = 255):
+    """
+    Function to count the peaks of the signal over a threshold
+    Input :
+    data: 1d-array, raw DM data
+    std: int, sigma threshold value
+    Output :
+    len(filtered_peaks_indices): int, number of peaks
+    filtered_peaks_indices: 1d-array, indices of the peaks 
+    filtered_peaks_values: 1d-array, value of the peaks
+    """
     peaks_indices = find_peaks(data)[0]
     peaks = np.array(list(zip(peaks_indices, data[peaks_indices])))
-    threshold = np.median(moving_average(data)[255:]+ std*np.std(data))
+    threshold = np.median(moving_average(data)[slice:]+ std*np.std(data))
     
     #filtered_peaks = [(index, value) for index, value in peaks if value > threshold]
     
@@ -115,7 +147,6 @@ def peaks_over_thresh(data, std = 5):
     
     filtered_peaks_values = [value for index, value in peaks if value > threshold]
     
-    #retorna la cantidad de peaks, sus índices y la altura de los peaks
     return len(filtered_peaks_indices), filtered_peaks_indices, filtered_peaks_values
 
 #-----------------------------------------------------------------------------plots---------------------------------------------------------------------------------
@@ -128,6 +159,14 @@ nombres = [45, 90, 135, 180, 225, 270, 315, 360, 405, 450, 495]
 
 #visualizar dms de un solo archivo
 def plot_dm(data, quantity = 11):
+    """
+    Plot the DM data as a timeseries, you can choose to plot all 11 DMs or only a limited amount (matplotlib takes memory...)
+    Input :
+    data: 1d-array, raw DM data
+    quantity: int, number of DMs to plot
+    Output :
+    a plot of the dedispersed power versus time for different DMs.
+    """
     dms = dm(data)
     for i in range(quantity):
         fig, ax = plt.subplots()
@@ -144,6 +183,14 @@ def plot_dm(data, quantity = 11):
 #se recomienda guardar la matriz como un binario usando pickle para poder ser usada en cualquier momento
 
 def conteo_detecciones(lista_archivos):
+    """
+    Function to count the peaks of the data over several thresholds and the events detected over the same thresholds.
+    Input :
+    lista_archivos: 1d-array with the names of the files
+    Output :
+    cantidad_peaks: 2d-array, number of peaks over certain threshold per DM
+    eventos: 2d-array, number of events over certain threshold per DM
+    """
     cantidad_peaks = np.zeros((11, len(sigmas)))
     eventos = np.zeros((11, len(sigmas)))
     for npz in lista_archivos:
@@ -172,13 +219,15 @@ def conteo_detecciones(lista_archivos):
         eventos = eventos + np.array(eventos_in_npz)
     return cantidad_peaks, eventos
 
-   
-
-
-#detecciones sin acumular en cada threshold
-#puede presentar problemas si receptores se saturan (ie detecciones negativas)
 
 def desacumular(cantidad_detecciones):
+    """
+    Function to deacumulate the detections from one threshold to a higher one in order to count a detections that surpasses only highest threhsold
+    Input : 
+    cantidad_detecciones: 2d-array containing peaks/events
+    Output :
+    new_matrix: 2d-array with deacumulated peaks/events on each threhshold
+    """
     new_matrix = cantidad_detecciones.copy()
     for fila in new_matrix:
         for i in range(len(fila)):
@@ -191,6 +240,15 @@ def desacumular(cantidad_detecciones):
 #se crea una función para poder usar cualquier matriz de detecciones guardada
 
 def heatmap_hist(files, cantidad_detecciones, title = 'Detecciones'):
+    """
+    2d plot of the detections for each DM over different thresholds
+    Input :
+    files: 1d-array with the names of the files
+    cantidad_detecciones: 2d-array containing peaks/events
+    title: str, title for the plot
+    Output :
+    Heatmap of the DMs and thresholds with cumulative histograms. Title specifies the time frame from which the files are being analyzed.
+    """
     fig = plt.figure()
     ax1 = fig.add_axes([0.1, 0.1, 0.65, 0.65])
     ax2 = fig.add_axes([0.1, 0.75, 0.65, 0.15])
@@ -211,10 +269,14 @@ def heatmap_hist(files, cantidad_detecciones, title = 'Detecciones'):
     ax3.set(xlabel='Detecciones/DM'), ax3.grid()
     fig.suptitle(title + ' desde ' + files[0][:19] + ' hasta ' + files[-1][:19])
 
-#histograma 3d
-#se muestra cada dm con cada sigama threshold y la cantidad de detecciones
-
 def hist3d(cantidad_detecciones):
+    """
+    3d histogram of the detections for each DM over different thresholds
+    Input :
+    cantidad_detecciones: 2d-array containing peaks/events
+    Output :
+    3d histogram that shows graphically the quantity of detections over thresholds for each DM
+    """
     fig = plt.figure()
     ax = fig.add_subplot(111, projection = '3d')
 
@@ -236,23 +298,39 @@ def hist3d(cantidad_detecciones):
 #para esto, usamos una función donde tomamos una lista de archivos y escogemos un threshold y contar las detecciones
 #esto noes entrega un array de cantidad de detecciones en el tiempo
 
-def detecciones_por_npz(files, threshold = 5):
-   det_per_npz = []
-   for npz in files:
-       dms = dm(npz)
-       det = np.zeros(len(dms))
-       for i in range(len(dms)):
-          c = peaks_over_thresh(dms[i], std = threshold)[0]
-          fila = np.zeros(len(dms))
-          fila[i] = c
-          det = det + fila
-       det_per_npz.append(sum(det))
-   return det_per_npz
+def detecciones_por_npz(files, threshold = 8):
+    """
+    Function to count all the detections from a single .npz file
+    Input :
+    files: 1d-array with the names of the files
+    threshold: int, sigma threshold used
+    Output :
+    det_per_npz: 2d-array, detections for a single .npz file with a set threshold
+    """
+    det_per_npz = []
+    for npz in files:
+        dms = dm(npz)
+        det = np.zeros(len(dms))
+        for i in range(len(dms)):
+           c = peaks_over_thresh(dms[i], std = threshold)[0]
+           fila = np.zeros(len(dms))
+           fila[i] = c
+           det = det + fila
+        det_per_npz.append(sum(det))
+    return det_per_npz
 
 #plot en el tiempo
 #el eje x muestra la hora en formato Y-M-D h:m:s
 
 def detecciones_diarias(files, detecciones_por_dia):
+    """
+    plot of the detections for each DM over a set threshold in a day or a given period of time
+    Input :
+    files: 1d-array with the names of the files
+    detecciones_por_dia: 2d-array containing peaks in a period of time
+    Output :
+    plot of how many detections per day are obtained, x-axis shows dates and y-axis is the quantity of detections
+    """
     new = []
     for i in range(len(files)):
         e = dt.datetime.strptime(files[i][:19], '%Y-%m-%d %H_%M_%S')#, '%Y-%m-%d %H:%M:%S')
