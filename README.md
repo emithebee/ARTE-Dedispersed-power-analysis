@@ -1,4 +1,4 @@
 # Dedispersed power analysis
 This repository has the Python code I developed during summer 2024 to analyze the dedispersed power data from ARTE. This program show several plots, like how many times the signal surpasses different thresholds as a heatmap for sigma and DMs, alongside a histogram showing how much detections are seen per logfile analized over a specific sigma.
 
-wenapoa
+You can choose the thresholds you want to test. Additionally, there are separate plots for how many times the signal surpasses a threshold and how many times the "envelope" of the signal does, signifying an event rather than just RFI. RFI is normally seen as thousands of spikes happening in the span of seconds, meaning a large number of detections can only be interpretted as noise while only being counted as a single event. If there happened to be a similar number of events (the envelope surpassing the threshold) and detection counts, it can be a potential FRB or signal. This program doesn't check the form of the signal.
