@@ -18,7 +18,7 @@ def prep():
     listdir = os.listdir()
     listdir.sort()
     #todos los archivos tienen las mismas llaves
-    file = np.load(x[0])
+    file = np.load(listdir[0])
     keys = list(file.keys())
     keys.sort()
     dmkeys = keys[2:13]
@@ -30,8 +30,8 @@ def prep():
 
 
 def moving_average(data, N = 256):
-	"""
-	Function to calculate the moving average of an array
+    """
+    Function to calculate the moving average of an array
     Input :
     data: 1d-array, data from which to calculate moving average
     N: int, window size for the mv. avg
@@ -48,8 +48,8 @@ def moving_average(data, N = 256):
 
 
 def dm(data):
-	"""
-	Function to extract all the DM data of an .npz file
+    """
+    Function to extract all the DM data of an .npz file
     Input :
     data: str, name of the file to extract the DM data
     Output :
@@ -113,14 +113,14 @@ def detecciones_eventos(data, std=8, slice = 255):
     Output :
     round(len(i)/2): int, number of events detected from the data
     """
-     lmin, lmax = hl_envelopes_idx(data, dmin=256, dmax=256)
+    lmin, lmax = hl_envelopes_idx(data, dmin=256, dmax=256)
      
-     envolvente = data[lmax]
+    envolvente = data[lmax]
      
-     t = np.median(moving_average(data)[slice:]+ std*np.std(data))*np.ones(len(envolvente))
+    t = np.median(moving_average(data)[slice:]+ std*np.std(data))*np.ones(len(envolvente))
      
-     i = np.argwhere(np.diff(np.sign(envolvente-t))).flatten()
-     return round(len(i)/2)
+    i = np.argwhere(np.diff(np.sign(envolvente-t))).flatten()
+    return round(len(i)/2)
        
 def peaks_over_thresh(data, std = 8, slice = 255):
     """
@@ -368,7 +368,7 @@ if __name__ == '__main__':
     #normalizar por tiempo
     time1 = lista_archivos[0][0:19]
     time2 = lista_archivos[-1][0:19]
-    formato = '%Y-%m-%d %H_%M_%S'
+    formato = '%Y-%m-%d %H:%M:%S'
     resta = dt.datetime.strptime(time2, formato) - dt.datetime.strptime(time1, formato)
     (h, m, s) = str(resta).split(':')
     time_in_hours = int(h) + int(m)/60 + int(s)/3600
