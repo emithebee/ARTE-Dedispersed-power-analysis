@@ -381,6 +381,7 @@ if __name__ == '__main__':
     heatmap_hist(lista_archivos, np.round(desacumular(peaks)/time_in_hours), title = 'Detecciones sobre threshold')
     heatmap_hist(lista_archivos, np.round(desacumular(eventos/time_in_hours)), title = 'Número de eventos')
     detecciones_diarias(lista_archivos, perday)
+    plt.show()
     
 
 
